@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Profile Settings</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100vh;
+      box-sizing: border-box;
+      background: linear-gradient(135deg, #fdfdfd 0%, #e8f0fd 100%);
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      text-align: center;
+    }
+    .page-container {
+      max-width: 700px;
+      margin: 40px auto;
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 20px;
+      text-align: left;
+    }
+    #topBanner img {
+      max-width: 100%;
+      border-radius: 4px;
+    }
+    h1 {
+      margin-top: 0;
+      text-align: center;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    input[type="text"], input[type="password"], textarea {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      font-size: 1em;
+      flex: 1;
+    }
+    button {
+      margin-top: 5px;
+      padding: 8px 14px;
+      border-radius: 3px;
+      border: none;
+      background: #28a745;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    button:hover {
+      background: #218838;
+    }
+    #profileImg {
+      max-width: 120px;
+      display: none;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    a {
+      color: #007bff;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    label {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <div id="topBanner">
+      <img src="/static/profilebanner.png" alt="Profile Banner">
+    </div>
+    <h1>My Profile Settings</h1>
+    <p>Use this page to view or update your profile (session-based).</p>
+
+    <div class="row">
+      <input type="text" id="username" placeholder="Username">
+      <input type="password" id="password" placeholder="Password">
+      <button id="loginBtn">Login</button>
+      <button id="logoutBtn" style="display:none;">Logout</button>
+    </div>
+
+    <div id="profileForm" style="display:none;">
+      <div class="row">
+        <label style="min-width:130px;">Display Name:</label>
+        <input type="text" id="displayName">
+      </div>
+      <div class="row">
+        <label style="min-width:130px;">Email:</label>
+        <input type="text" id="email">
+      </div>
+      <div class="row">
+        <label style="min-width:130px;">Bio:</label>
+        <textarea id="bio" rows="3" style="flex:1;"></textarea>
+      </div>
+      <div class="row">
+        <label>
+          <input type="checkbox" id="publicListed"> Public Listing
+        </label>
+      </div>
+      <hr>
+      <h3>Change Password</h3>
+      <div class="row">
+        <label style="min-width:130px;">Old Password:</label>
+        <input type="password" id="oldPassword">
+      </div>
+      <div class="row">
+        <label style="min-width:130px;">New Password:</label>
+        <input type="password" id="newPassword">
+      </div>
+      <button id="updateProfileBtn">Update Profile</button>
+      <hr>
+      <label>Upload a Profile Image (max ~2MB):</label>
+      <input type="file" id="profileImageFile">
+      <button id="uploadProfileImgBtn">Upload</button>
+      <img id="profileImg" alt="Profile Image">
+
+    </div>
+    <p style="margin-top:20px; text-align:center;">
+      <a href="/">← Back to Main</a>
+    </p>
+  </div>
+
+  <script>
+    let isLoggedIn=false;
+    const profileForm=document.getElementById('profileForm');
+    const logoutBtn=document.getElementById('logoutBtn');
+    const profileImg=document.getElementById('profileImg');
+
+    document.getElementById('loginBtn').addEventListener('click', loginUser);
+    logoutBtn.addEventListener('click', logoutUser);
+    document.getElementById('updateProfileBtn').addEventListener('click', updateProfile);
+    document.getElementById('uploadProfileImgBtn').addEventListener('click', uploadProfileImg);
+
+    async function loginUser(){
+      const username=document.getElementById('username').value.trim();
+      const password=document.getElementById('password').value;
+      if(!username||!password){
+        alert("Enter username and password.");
+        return;
+      }
+      try{
+        const r=await fetch('/auth/login',{
+          method:'POST',credentials:'include',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({username,password})
+        });
+        const d=await r.json();
+        if(d.status==='success'){
+          alert("Logged in!");
+          isLoggedIn=true;
+          logoutBtn.style.display='inline-block';
+          profileForm.style.display='block';
+          loadProfile();
+        } else {
+          alert("Login error: "+(d.message||'Unknown'));
+        }
+      } catch(err){
+        alert("Login request failed: "+err);
+      }
+    }
+
+    async function logoutUser(){
+      try{
+        const r=await fetch('/auth/logout',{method:'POST',credentials:'include'});
+        const d=await r.json();
+        if(d.status==='success'){
+          alert("Logged out.");
+          isLoggedIn=false;
+          profileForm.style.display='none';
+          logoutBtn.style.display='none';
+        } else {
+          alert("Logout error: "+(d.message||'Unknown'));
+        }
+      }catch(err){
+        alert("Logout request failed: "+err);
+      }
+    }
+
+    async function loadProfile(){
+      try{
+        const r=await fetch('/settings',{credentials:'include'});
+        if(!r.ok){
+          throw new Error("Profile load error: "+r.status);
+        }
+        const d=await r.json();
+        if(d.status==='success'){
+          const u=d.user;
+          document.getElementById('displayName').value=u.display_name||'';
+          document.getElementById('email').value=u.email||'';
+          document.getElementById('bio').value=u.bio||'';
+          document.getElementById('publicListed').checked=!!u.public_listed;
+          if(u.profile_image_url){
+            profileImg.src=u.profile_image_url;
+            profileImg.style.display='block';
+          } else {
+            profileImg.style.display='none';
+          }
+        } else {
+          alert("Failed: "+(d.message||'Unknown'));
+        }
+      } catch(err){
+        alert("Profile load failed: "+err);
+      }
+    }
+
+    async function updateProfile(){
+      if(!isLoggedIn)return;
+      const oldP=document.getElementById('oldPassword').value;
+      const newP=document.getElementById('newPassword').value;
+      const bodyData={
+        display_name:document.getElementById('displayName').value.trim(),
+        email:document.getElementById('email').value.trim(),
+        bio:document.getElementById('bio').value.trim(),
+        public_listed:document.getElementById('publicListed').checked
+      };
+      if(oldP && newP){
+        bodyData.oldPassword=oldP;
+        bodyData.newPassword=newP;
+      }
+      try{
+        const r=await fetch('/settings',{
+          method:'POST',credentials:'include',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(bodyData)
+        });
+        const d=await r.json();
+        if(d.status==='success'){
+          alert("Profile updated!");
+          document.getElementById('oldPassword').value='';
+          document.getElementById('newPassword').value='';
+          loadProfile();
+        } else {
+          alert("Update error: "+(d.message||'Unknown'));
+        }
+      }catch(err){
+        alert("Update request failed: "+err);
+      }
+    }
+
+    async function uploadProfileImg(){
+      if(!isLoggedIn)return;
+      const f=document.getElementById('profileImageFile');
+      if(!f.files||!f.files[0]){
+        alert("No file selected.");
+        return;
+      }
+      const formData=new FormData();
+      formData.append('image',f.files[0]);
+      try{
+        const r=await fetch('/upload/profile',{
+          method:'POST',credentials:'include',body:formData
+        });
+        const d=await r.json();
+        if(d.status==='success'){
+          alert("Profile image uploaded!");
+          profileImg.src=d.imageUrl;
+          profileImg.style.display='block';
+        } else {
+          alert("Upload error: "+(d.message||'Unknown'));
+        }
+      }catch(err){
+        alert("Upload request failed: "+err);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Media Library Editor</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100vh;
+      box-sizing: border-box;
+      background: linear-gradient(135deg, #fdfdfd 0%, #e8f0fd 100%);
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      text-align: center;
+    }
+    .page-container {
+      max-width: 900px;
+      margin: 40px auto;
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    h1 {
+      margin-top: 0;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+      justify-content: center;
+      align-items: center;
+    }
+    input {
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      font-size: 1em;
+    }
+    button {
+      padding: 6px 12px;
+      border: none;
+      cursor: pointer;
+      background: #28a745;
+      color: #fff;
+      border-radius: 3px;
+      margin-right: 10px;
+      transition: background 0.2s ease;
+    }
+    button:hover {
+      background: #218838;
+    }
+    #messageBox {
+      margin-top: 5px;
+      color: #333;
+    }
+    .media-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+      justify-content: center;
+    }
+    .media-item {
+      width: 160px;
+      background: #fafafa;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px;
+      text-align: center;
+    }
+    .media-item img {
+      max-width: 100%;
+      margin-bottom: 5px;
+      border-radius: 4px;
+    }
+    .delete-btn {
+      border: none;
+      padding: 6px 10px;
+      background: #d9534f;
+      color: #fff;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.85em;
+    }
+    .delete-btn:hover {
+      background: #c9302c;
+    }
+    a {
+      color: #007bff;
+      text-decoration: none;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <h1>User Media Library</h1>
+    <p>Manage images you have uploaded. (Requires an active session; log in below or on main page.)</p>
+
+    <div class="row">
+      <input type="text" id="usernameInput" placeholder="Username">
+      <input type="password" id="passwordInput" placeholder="Password">
+      <button id="loginBtn">Login</button>
+      <button id="loadMediaBtn">Load Media</button>
+    </div>
+
+    <div id="messageBox"></div>
+    <div class="media-grid" id="mediaGrid"></div>
+
+    <p style="margin-top:20px;">
+      <a href="/">← Back to Main</a>
+    </p>
+  </div>
+
+  <script>
+  const mediaGrid=document.getElementById('mediaGrid');
+  const messageBox=document.getElementById('messageBox');
+
+  document.getElementById('loginBtn').addEventListener('click', async()=>{
+    const username=document.getElementById('usernameInput').value.trim();
+    const password=document.getElementById('passwordInput').value;
+    if(!username||!password){
+      alert("Please enter username and password.");
+      return;
+    }
+    try{
+      const resp=await fetch('/auth/login',{
+        method:'POST',
+        credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({username,password})
+      });
+      const data=await resp.json();
+      if(data.status==='success'){
+        alert("Logged in!");
+      } else {
+        alert("Login error: "+(data.message||'Unknown'));
+      }
+    }catch(err){
+      alert("Login request failed: "+err);
+    }
+  });
+  document.getElementById('loadMediaBtn').addEventListener('click', loadUserMedia);
+
+  async function loadUserMedia(){
+    try{
+      const resp=await fetch('/api/medialist',{credentials:'include'});
+      if(!resp.ok){
+        throw new Error("Failed to fetch: "+resp.status);
+      }
+      const data=await resp.json();
+      if(data.status==='success'){
+        mediaGrid.innerHTML='';
+        if(!data.files||data.files.length===0){
+          messageBox.textContent="No media found for this user.";
+        } else {
+          messageBox.textContent="";
+          data.files.forEach(fileObj=>{
+            const div=document.createElement('div');
+            div.className='media-item';
+            const img=document.createElement('img');
+            img.src=fileObj.url;
+            img.alt=fileObj.filename;
+            div.appendChild(img);
+
+            const delBtn=document.createElement('button');
+            delBtn.textContent='Delete';
+            delBtn.className='delete-btn';
+            delBtn.addEventListener('click',()=>deleteFile(fileObj.filename));
+            div.appendChild(delBtn);
+
+            mediaGrid.appendChild(div);
+          });
+        }
+      } else {
+        messageBox.textContent="Error: "+(data.message||'Unknown');
+      }
+    }catch(err){
+      messageBox.textContent="Request error: "+err;
+    }
+  }
+  async function deleteFile(filename){
+    if(!confirm("Delete file "+filename+"?"))return;
+    try{
+      const resp=await fetch('/api/medialist',{
+        method:'DELETE',
+        credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({filename})
+      });
+      const data=await resp.json();
+      if(data.status==='success'){
+        alert("Deleted!");
+        loadUserMedia();
+      } else {
+        alert("Delete error: "+(data.message||'Unknown'));
+      }
+    }catch(err){
+      alert("Request failed: "+err);
+    }
+  }
+  </script>
+</body>
+</html>

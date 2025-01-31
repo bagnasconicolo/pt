@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Directory</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100vh;
+      box-sizing: border-box;
+      background: linear-gradient(135deg, #fdfdfd 0%, #e8f0fd 100%);
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      text-align: center;
+    }
+    .page-container {
+      max-width: 900px;
+      margin: 40px auto;
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    #topBanner img {
+      max-width: 100%;
+      border-radius: 4px;
+    }
+    h1 {
+      margin-top: 0;
+    }
+    p {
+      line-height: 1.5;
+      text-align: left;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    a {
+      color: #007bff;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <div id="topBanner">
+      <img src="/static/usdirbanner.png" alt="Directory Banner">
+    </div>
+
+    <h1>User Directory</h1>
+    <p>Below is a list of users who have allowed their profile to be public:</p>
+
+    <table id="userTable">
+      <thead>
+        <tr>
+          <th>Display Name</th>
+          <th>Username</th>
+          <th>Pure</th>
+          <th>Rep</th>
+          <th>Alloy</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <p style="margin-top:20px;">
+      <a href="/">← Back to Main</a>
+    </p>
+  </div>
+
+  <script>
+  async function loadUsers(){
+    try{
+      const resp=await fetch('/api/listusers');
+      const data=await resp.json();
+      if(data.status==='success'){
+        const tb=document.querySelector('#userTable tbody');
+        tb.innerHTML='';
+        data.users.forEach(u=>{
+          const tr=document.createElement('tr');
+          tr.innerHTML=`
+            <td>${u.display_name}</td>
+            <td>${u.username}</td>
+            <td>${u.pure_count}</td>
+            <td>${u.rep_count}</td>
+            <td>${u.alloy_count}</td>
+            <td>${u.total_collected}</td>
+          `;
+          tb.appendChild(tr);
+        });
+      } else {
+        alert("Error loading user list: "+(data.message||'Unknown'));
+      }
+    }catch(err){
+      alert("Request failed: "+err);
+    }
+  }
+  window.addEventListener('DOMContentLoaded', loadUsers);
+  </script>
+</body>
+</html>
